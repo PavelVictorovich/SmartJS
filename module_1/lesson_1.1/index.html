@@ -1,0 +1,59 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf8">
+    <title>Задание 1</title>
+    <script type="text/javascript" src="index.js"></script>
+  </head>
+  <body>
+    <h1>1. Является ли число простым?</h1>
+    <input type="number" id="primeInput">
+    <button id="primeButton">Проверить</button>
+    <div id="result1"></div>
+    <hr />
+    <h1>2. Таблица умножения</h1>
+    <button id="showTable">Показать</button>
+    <pre id="result2"></pre>
+    <hr />
+    <h1>3. Перевертыш</h1>
+    <input type="text" id="reverse">
+    <button id="doReverse">Перевернуть!</button>
+    <pre id="result3"></pre>
+    <hr />
+    <h1>4. Простой палиндром (введите длину)</h1>
+    <input type="number" max="10" id="searchPrimePalindrome">
+    <button id="doSearch">Искать!</button>
+    <div id="result4"></div>
+    <script type="text/javascript">
+      window.onerror = function (err) {
+        alert('У вас ошибка в коде: ' + err);
+      };
+
+      function $ (q) {
+        return document.getElementById(q);
+      }
+
+      $('primeButton').addEventListener('click', function () {
+        var value = $('primeInput').value;
+        $('result1').innerHTML = (isPrime(+value)) ? 'Простое' : 'Составное';
+      });
+
+      $('showTable').addEventListener('click', function () {
+        $('result2').innerHTML = generateTable();
+      });
+
+      $('doReverse').addEventListener('click', function () {
+        $('result3').innerHTML = reverse($('reverse').value);
+      });
+
+      $('doSearch').addEventListener('click', function () {
+        $('result4').innerHTML = 'Работаем...';
+        $('result4').innerHTML =  biggestPrimePalindrome($('searchPrimePalindrome').value);
+      })
+
+
+    </script>
+</html>
+
+
+//Решено и принято
