@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Ajax</title>
+    <style>
+        a {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+<div class="list">
+</div>
+
+<span class="loadtime"><label>Load time</label></span>
+
+<button class="btn">Reload</button>
+
+<script>
+    function getUsersList() {
+        var request = new XMLHttpRequest();
+        request.open('GET', 'http://jsonplaceholder.typicode.com/users');
+        request.send();
+
+        request.addEventListener('readystatechange', function () {
+            var startTime = new Date();
+            if (request.readyState === request.DONE) {
+                var users = JSON.parse(request.responseText);
+                var endTime = new Date();
+                var loadTime = endTime - startTime;
+                var loadTimeTag = document.querySelector('.loadtime');
+
+                loadTimeTag.innerHTML = loadTime;
+                cb(users);
+            }
+        });
+    }
+
+    function cb(users) {
+        for (var i = 0; i < users.length; i++) {
+            var currentUser = users[i];
+            var currentName = currentUser.name;
+            var currentEmail = currentUser.email;
+            var list = document.querySelector('.list');
+            var link = document.createElement('a');
+
+            link.innerHTML = currentName;
+            link.setAttribute('href', 'mailto:' + currentEmail);
+            list.appendChild(link);
+            link.onmouseover = function (event) {
+                var content = event.target.innerHTML;
+                event.target.setAttribute('title', content);
+            };
+            link.onmouseout = function (event) {
+                event.target.removeAttribute('title')
+            }
+        }
+    }
+
+    var btn = document.querySelector('.btn');
+    btn.addEventListener('click', getUsersList, false);
+
+    getUsersList();
+</script>
+</body>
+</html>
