@@ -37,6 +37,7 @@ function floyd(paths) {
         }
         str += '\n';
     }
+    return str;
 }
 var graph = [
     { from: 1, to: 2, price: 7  },
