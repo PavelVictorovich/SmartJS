@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Validation Form</title>
+
+    <link href="./style.css" rel="stylesheet">
+
+</head>
+<body>
+<form id="new" class="f1" novalidate>
+    <div class="item">
+        <label for="name">name:</label>
+        <input type="text" name="name" id="name" required>
+        <span class="error"></span>
+    </div>
+    <div class="item">
+        <label for="idcard">ID card:</label>
+        <input type="number" name="idcard" id="idcard" required pattern="[0-9]{15,18}">
+        <span class="error"></span>
+    </div>
+    <div class="item">
+        <label for="number">number:</label>
+        <input type="number" name="number" id="number" required pattern="^[0-9]{8}$">
+        <span class="error"></span>
+    </div>
+    <div class="item">
+        <label for="email">email:</label>
+        <input type="email" name="email" id="email" required pattern="^([\w-_]+(?:\.[\w-_]+)*)@((?:[a-z0-9]+(?:-[a-zA-Z0-9]+)*)+\.[a-z]{2,6})$">
+        <span class="error"></span>
+    </div>
+    <div class="item">
+        <label for="phone">phone:</label>
+        <input type="tel" name="phone" id="phone" required pattern="^1[3|4|5|7|8]\d{9}$">
+        <span class="error"></span>
+    </div>
+    <div class="item">
+        <label for="other">other:</label>
+        <textarea name="other" id="other" required pattern="\w{1,120}"></textarea>
+        <span class="error"></span>
+    </div>
+    <div class="item">
+        <button type="submit">submit</button>
+    </div>
+</form>
+<script src="./validate.js" type="text/javascript" charset="utf-8" async defer></script>
+</body>
+</html>
