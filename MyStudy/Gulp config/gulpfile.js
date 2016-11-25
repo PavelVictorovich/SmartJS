@@ -1,126 +1,191 @@
 'use strict';
 
-const path = require('path');
-const del = require('del');
-const debug = require('gulp-debug');
-const gulp = require('gulp');
-const sourcemaps = require('gulp-sourcemaps');
-const stylus = require('gulp-stylus');
-const browserSync = require('browser-sync').create();
-const resolver = require('stylus').resolver;
-const svgSprite = require('gulp-svg-sprite');
-const gulpIf = require('gulp-if');
-const cssnano = require('gulp-cssnano');
-const rev = require('gulp-rev');
-const revReplace = require('gulp-rev-replace');
-const notify = require('gulp-notify');
-const combiner = require('stream-combiner2').obj;
-const through2 = require('through2').obj;
-const eslint = require('gulp-eslint');
-const fs = require('fs');
-const plumber = require('gulp-plumber');
-const webpackStream = require('webpack-stream'); // Gulp + Webpack = ♡
-const webpack = webpackStream.webpack;
-const named = require('vinyl-named');
-const gulplog = require('gulplog');
-const uglify = require('gulp-uglify');
-const AssetsPlugin = require('assets-webpack-plugin');
+const   gulp = require('gulp'),
+        watch = require('gulp-watch'),
+        prefixer = require('gulp-autoprefixer'),
+        uglify = require('gulp-uglify'),
+        sass = require('gulp-sass'),
+        sourcemaps = require('gulp-sourcemaps'),
+        del = require('del'),
+        rigger = require('gulp-rigger'),
+        cssmin = require('gulp-minify-css'),
+        imagemin = require('gulp-imagemin'),
+        pngquant = require('imagemin-pngquant'),
+        browserSync = require("browser-sync"),
+        gulpIf = require('gulp-if'),
+        notify = require('gulp-notify'),
+        combiner = require('stream-combiner2').obj,
+        through2 = require('through2').obj,
+        eslint = require('gulp-eslint'),
+        fs = require('fs'),
+        webpack = require('webpack'),
+        gulplog = require('gulplog'),
+        notifier = require('node-notifier'),
+        path = require('path');
 
-const isDevelopment = !process.env.NODE_ENV || process.env.NODE_ENV == 'development';
+var paths = {
+    build: {
+        html: 'build/',
+        js: 'build/js/',
+        css: 'build/css/',
+        img: 'build/img/',
+        fonts: 'build/fonts/',
+        libs: 'build/libs/'
+    },
+    src: {
+        html: 'src/*.html',
+        js: './src/js/main',
+        style: 'src/style/main.scss',
+        img: 'src/img/**/*.*',
+        fonts: 'src/fonts/**/*.*',
+        libs: 'src/libs/**/*.*'
+    },
+    watch: {
+        html: 'src/**/*.html',
+        js: 'src/js/**/*.js',
+        style: 'src/style/**/*.scss',
+        img: 'src/img/**/*.*',
+        fonts: 'src/fonts/**/*.*',
+        libs: 'src/libs/**/*.*'
+    },
+    clean: './build'
+};
 
-gulp.task('styles', function() {
-    return gulp.src('frontend/styles/index.scss')
-        .pipe(plumber({
-            errorHandler: notify.onError(err => ({
-                title:   'Styles',
-                message: err.message
-            }))
-        }))
-        .pipe(gulpIf(isDevelopment, sourcemaps.init()))
-        .pipe(stylus({
-            define: {
-                url: resolver()
-            }
-        }))
-        .pipe(gulpIf(isDevelopment, sourcemaps.write()))
-        .pipe(gulpIf(!isDevelopment, combiner(cssnano(), rev())))
-        .pipe(gulp.dest('public/styles'))
-        .pipe(gulpIf(!isDevelopment, combiner(rev.manifest('css.json'), gulp.dest('manifest'))));
-
+gulp.task('webserver', function () {
+    browserSync.init({
+        server: 'build'
+    });
+    browserSync.watch('build/**/*.*').on('change', browserSync.reload);
 });
 
-gulp.task('styles:svg', function() {
-    return gulp.src('frontend/styles/**/*.svg')
-        .pipe(svgSprite({
-            mode: {
-                css: {
-                    dest:       '.', // where to put style && sprite, default: 'css'
-                    bust:       false,
-                    sprite:     'sprite.svg', // filename for sprite relative to dest
-                    layout:     'vertical',
-                    prefix:     '$', // .svg-
-                    dimensions: true,
-                    render:     {
-                        styl: {
-                            dest: 'sprite.styl'  // filename for .styl relative to dest^
-                        }
-                    }
+gulp.task('clean', function () {
+    return del(paths.clean);
+});
+
+gulp.task('html:build', function () {
+    return gulp.src(paths.src.html)
+        .pipe(rigger())
+        .pipe(gulp.dest(paths.build.html));
+});
+
+gulp.task('libs:build', function () {
+    return gulp.src(paths.src.libs)
+        .pipe(gulp.dest(paths.build.libs));
+});
+
+gulp.task('js:build', function (callback) {
+
+    let options = {
+        entry: [
+            /*'babel-polyfill',*/
+            paths.src.js
+        ],
+        output: {
+            path: path.resolve(__dirname, paths.build.js),
+            filename: 'bundle.js',
+        },
+        watch:   true,
+        devtool: 'inline-source-map',
+        module:  {
+            loaders: [{
+                test: /\.js$/,
+                exclude: /node_modules/,
+                loader: 'babel',
+                query: {
+                    presets: ['es2015', 'stage-0']
                 }
-            }
+            }]
+        },
+        plugins: [
+            new webpack.NoErrorsPlugin(),
+            new webpack.optimize.UglifyJsPlugin({
+                compress: {
+                    warnings:     false,
+                    unsafe:       true
+                }
+            })
+        ],
+        externals: {
+            "jquery": "jQuery"
+        },
+    };
+    webpack(options, function(err, stats) {
+        if (!err) {
+            err = stats.toJson().errors[0];
+        }
+        if (err) {
+            notifier.notify({
+                title: 'Webpack',
+                message: err
+            });
+            gulplog.error(err);
+        } else {
+            gulplog.info(stats.toString({
+                colors: true
+            }));
+        }
+        if (!options.watch && err) {
+            callback(err);
+        } else {
+            callback();
+        }
+    });
+});
+
+gulp.task('style:build', function () {
+    return gulp.src(paths.src.style)
+        .pipe(sourcemaps.init())
+        .pipe(sass({
+            includePaths: ['src/style/'],
+            outputStyle: 'compressed',
+            sourceMap: true,
+            errLogToConsole: true
         }))
-        .pipe(debug({title: 'styles:svg'}))
-        .pipe(gulpIf('*.styl', gulp.dest('tmp/styles'), gulp.dest('public/styles')));
+        .pipe(prefixer())
+        .pipe(cssmin())
+        .pipe(sourcemaps.write())
+        .pipe(gulp.dest(paths.build.css));
 });
 
-gulp.task('clean', function() {
-    return del(['public', 'tmp', 'manifest']);
+gulp.task('image:build', function () {
+    return gulp.src(paths.src.img)
+        .pipe(imagemin({
+            progressive: true,
+            svgoPlugins: [{removeViewBox: false}],
+            use: [pngquant()],
+            interlaced: true
+        }))
+        .pipe(gulp.dest(paths.build.img));
 });
 
-gulp.task('assets', function() {
-    return gulp.src('frontend/assets/**/*.*', {since: gulp.lastRun('assets')})
-        .pipe(gulpIf(!isDevelopment, revReplace({
-            manifest: gulp.src('manifest/css.json', {allowEmpty: true})
-        })))
-        .pipe(gulpIf(!isDevelopment, revReplace({
-            manifest: gulp.src('manifest/webpack.json', {allowEmpty: true})
-        })))
-        .pipe(gulp.dest('public'));
+gulp.task('fonts:build', function() {
+    return gulp.src(paths.src.fonts)
+        .pipe(gulp.dest(paths.build.fonts));
 });
 
-gulp.task('styles:assets', function() {
-    return gulp.src('frontend/styles/**/*.{svg,png}', {since: gulp.lastRun('styles:assets')})
-        .pipe(gulpIf(!isDevelopment, rev()))
-        .pipe(gulp.dest('public/styles'))
-        .pipe(gulpIf(!isDevelopment, combiner(rev.manifest('assets.json'), gulp.dest('manifest'))));
+gulp.task('build', gulp.series('clean', gulp.parallel('html:build', 'js:build', 'style:build', 'fonts:build', 'image:build', 'libs:build')));
+
+gulp.task('watch', function(){
+    gulp.watch([paths.watch.html], gulp.series('html:build'));
+    gulp.watch([paths.watch.style], gulp.series('style:build'));
+    gulp.watch([paths.watch.js], gulp.series('js:build'));
+    gulp.watch([paths.watch.img], gulp.series('image:build'));
+    gulp.watch([paths.watch.fonts], gulp.series('fonts:build'));
+    gulp.watch([paths.watch.fonts], gulp.series('libs:build'));
 });
 
-gulp.task('build', gulp.series('clean', gulp.parallel('styles:assets', 'styles', 'webpack'), 'assets'));
-
-gulp.task('watch', function() {
-    gulp.watch('frontend/styles/**/*.styl', gulp.series('styles'));
-    gulp.watch('frontend/assets/**/*.*', gulp.series('assets'));
-    gulp.watch('frontend/styles/**/*.{svg,png}', gulp.series('styles:assets'));
-});
-
-gulp.task('serve', function() {
-    browserSync.init({ server: 'public' });
-    browserSync.watch('public/**/*.*').on('change', browserSync.reload);
-});
-
-gulp.task('dev', gulp.series('build', gulp.parallel('serve', function() {
-    gulp.watch('frontend/styles/**/*.styl', gulp.series('styles'));
-    gulp.watch('frontend/assets/**/*.*', gulp.series('assets'));
-    gulp.watch('frontend/styles/**/*.{svg,png}', gulp.series('styles:assets'));
-})));
+gulp.task('default', gulp.series('build', gulp.parallel('webserver', 'watch')));
 
 gulp.task('lint', function() {
     let eslintResults = {};
     let cacheFilePath = process.cwd() + '/tmp/lintCache.json';
+
     try {
         eslintResults = JSON.parse(fs.readFileSync(cacheFilePath));
     } catch (e) {
     }
-    return gulp.src('frontend/**/*.js', {read: false})
+
+    return gulp.src('src/**/*.js', {read: false})
         .pipe(gulpIf(
             function(file) {
                 return eslintResults[file.path] && eslintResults[file.path].mtime == file.stat.mtime.toJSON();
@@ -148,64 +213,4 @@ gulp.task('lint', function() {
             fs.writeFileSync(cacheFilePath, JSON.stringify((eslintResults)));
         })
         .pipe(eslint.failAfterError());
-});
-
-gulp.task('webpack', function(callback) {
-    let firstBuildReady = false;
-    function done(err, stats) {
-        firstBuildReady = true;
-        if (err) { // hard error, see https://webpack.github.io/docs/node.js-api.html#error-handling
-            return;  // emit('error', err) in webpack-stream
-        }
-        gulplog[stats.hasErrors() ? 'error' : 'info'](stats.toString({
-            colors: true
-        }));
-    }
-    let options = {
-        output: {
-            publicPath: '/js/',
-            filename: isDevelopment ? '[name].js' : '[name]-[chunkhash:10].js'
-        },
-        watch:   isDevelopment,
-        devtool: isDevelopment ? 'cheap-module-inline-source-map' : null,
-        module:  {
-            loaders: [{
-                test:    /\.js$/,
-                include: path.join(__dirname, "frontend"),
-                loader:  'babel?presets[]=es2015'
-            }]
-        },
-        plugins: [
-            new webpack.NoErrorsPlugin()
-        ]
-    };
-    if (!isDevelopment) {
-        options.plugins.push(new AssetsPlugin({
-            filename: 'webpack.json',
-            path:     __dirname + '/manifest',
-            processOutput(assets) {
-                for (let key in assets) {
-                    assets[key + '.js'] = assets[key].js.slice(options.output.publicPath.length);
-                    delete assets[key];
-                }
-                return JSON.stringify(assets);
-            }
-        }));
-    }
-    return gulp.src('frontend/js/*.js')
-        .pipe(plumber({
-            errorHandler: notify.onError(err => ({
-                title:   'Webpack',
-                message: err.message
-            }))
-        }))
-        .pipe(named())
-        .pipe(webpackStream(options, null, done))
-        .pipe(gulpIf(!isDevelopment, uglify()))
-        .pipe(gulp.dest('public/js'))
-        .on('data', function() {
-            if (firstBuildReady) {
-                callback();
-            }
-        });
 });
